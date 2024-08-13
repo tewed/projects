@@ -1,2 +1,2 @@
 # projects
-A repository containing all the projects used for learning and showcasing learning efforts and experience
+A repository containing all the projects used for showcasing work
