@@ -1,5 +1,9 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay, RocCurveDisplay
+
 
 
 def lift_score(estimator, X, y):
@@ -48,3 +52,56 @@ def lift_score(estimator, X, y):
     lift['lift'] = lift_group['response_rate']/mean_response_rate
     return lift_group
 
+
+def eval_metrics(estimator, X, y, model_name=""):
+    """
+    Evaluate and display key metrics for a classification model, including a classification report,
+    confusion matrix, ROC curve, and lift chart.
+
+    This function evaluates the performance of a classification model using several metrics and visualizations:
+    - Prints a classification report summarizing precision, recall, f1-score, and support.
+    - Displays a confusion matrix.
+    - Displays a ROC curve.
+    - Computes and prints a lift score report.
+    - Plots a lift chart based on deciles of predicted probabilities.
+
+    Parameters:
+    -----------
+    estimator : object
+        A fitted estimator object that has `predict` and `predict_proba` methods.
+    X : array-like, shape (n_samples, n_features)
+        The input data used to generate predictions.
+    y : array-like, shape (n_samples,)
+        The true binary labels (0 or 1).
+    model_name : str, optional (default="")
+        An optional name for the model, used for labeling and titles.
+
+    Notes:
+    ------
+    - The function assumes that `classification_report`, `ConfusionMatrixDisplay`, and `RocCurveDisplay`
+      are imported from `sklearn.metrics` and `matplotlib.pyplot` is imported as `plt`.
+    - The function relies on the `lift_score` function to calculate and display the lift report and lift chart.
+    - The lift chart is plotted using `matplotlib` and displays lift across deciles.
+    """
+    
+    y_pred_test = estimator.predict(X)
+    class_report_test = classification_report(y, y_pred_test)
+    print("Model metrics Summary: \n%s", str(class_report_test))
+
+    display = ConfusionMatrixDisplay.from_estimator(estimator, X, y)
+    _ = display.ax_.set_title("Confusion Matrix")
+
+    display2 = RocCurveDisplay.from_estimator(estimator, X, y)
+    _ = display2.ax_.set_title("ROC Curve")
+
+    model_lift = lift_score(estimator, X, y.flatten())
+    print("Model Lift Report: \n%s", str(model_lift))
+
+    plt.figure(4)
+    ax=plt.gca()
+    model_lift.plot(x='Decile', y="Lift", ax=ax, color='r')
+    ax.legend(["Lift"])
+    plt.title("Lift Chart")
+    plt.xlabel('Decile')
+    ax.grid('on')
+    plt.xlim([1,10])
