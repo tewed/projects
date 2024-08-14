@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay, RocCurveDisplay
 
-
+__all__ = ['lift_score', 'eval_metrics']
 
 def lift_score(estimator, X, y):
     """
@@ -46,7 +46,7 @@ def lift_score(estimator, X, y):
     lift['decile_rank'] = 10 - pd.qcut(lift['predicted_response'], 10, labels = False, duplicates="drop")
     mean_response_rate = lift['response'].mean()
 
-    lift_group = lift.groupby('deciler_rank').agg({'response':['mean', 'count']})
+    lift_group = lift.groupby('decile_rank').agg({'response':['mean', 'count']})
     lift_group.reset_index(level=0, inplace=True)
     lift_group.columns = ['decile', 'response_rate', 'count']
     lift['lift'] = lift_group['response_rate']/mean_response_rate
@@ -83,7 +83,7 @@ def eval_metrics(estimator, X, y, model_name=""):
     - The function relies on the `lift_score` function to calculate and display the lift report and lift chart.
     - The lift chart is plotted using `matplotlib` and displays lift across deciles.
     """
-    
+
     y_pred_test = estimator.predict(X)
     class_report_test = classification_report(y, y_pred_test)
     print("Model metrics Summary: \n%s", str(class_report_test))
@@ -105,3 +105,4 @@ def eval_metrics(estimator, X, y, model_name=""):
     plt.xlabel('Decile')
     ax.grid('on')
     plt.xlim([1,10])
+    return 
