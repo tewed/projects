@@ -49,7 +49,7 @@ def lift_score(estimator, X, y):
     lift_group = lift.groupby('decile_rank').agg({'response':['mean', 'count']})
     lift_group.reset_index(level=0, inplace=True)
     lift_group.columns = ['decile', 'response_rate', 'count']
-    lift['lift'] = lift_group['response_rate']/mean_response_rate
+    lift_group['lift'] = lift_group['response_rate']/mean_response_rate
     return lift_group
 
 
@@ -94,15 +94,48 @@ def eval_metrics(estimator, X, y, model_name=""):
     display2 = RocCurveDisplay.from_estimator(estimator, X, y)
     _ = display2.ax_.set_title("ROC Curve")
 
-    model_lift = lift_score(estimator, X, y.flatten())
+    model_lift = lift_score(estimator, X, y)
     print("Model Lift Report: \n%s", str(model_lift))
 
     plt.figure(4)
     ax=plt.gca()
-    model_lift.plot(x='Decile', y="Lift", ax=ax, color='r')
+    model_lift.plot(x='decile', y="lift", ax=ax, color='r')
     ax.legend(["Lift"])
     plt.title("Lift Chart")
     plt.xlabel('Decile')
     ax.grid('on')
     plt.xlim([1,10])
     return 
+
+
+def plot_shap_summary_and_importance(model, X, max_display=10, sample_size=10000, random_state=None):
+    """
+    Plot the SHAP values summary and feature importance based on SHAP values for a random sample.
+    
+    Parameters:
+    - model: A trained XGBoost model (e.g., xgb.Booster or xgb.XGBClassifier).
+    - X: The data on which SHAP values will be computed (pandas DataFrame or numpy array).
+    - max_display: The maximum number of top features to display in the plots.
+    - sample_size: The number of samples to randomly select from X for SHAP analysis.
+    - random_state: Seed for random sampling to ensure reproducibility.
+    """
+    # Sample the data
+    if isinstance(X, pd.DataFrame):
+        X_sampled = X.sample(n=sample_size, random_state=random_state)
+    else:
+        X_sampled = X[np.random.RandomState(seed=random_state).choice(X.shape[0], size=sample_size, replace=False)]
+
+    # Ensure SHAP is supported for the model
+    explainer = shap.Explainer(model)
+    shap_values = explainer(X_sampled)
+    
+    # Plot the SHAP summary plot
+    plt.figure(figsize=(10, 6))
+    shap.summary_plot(shap_values, X_sampled, max_display=max_display)
+    plt.show()
+    
+    # Plot the SHAP feature importance (mean absolute value of SHAP values)
+    plt.figure(figsize=(10, 6))
+    # shap.summary_plot(shap_values, X_sampled, max_display=max_display, plot_type="bar")
+    shap.plots.bar(shap_values)
+    plt.show()
