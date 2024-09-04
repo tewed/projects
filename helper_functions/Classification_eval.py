@@ -53,55 +53,105 @@ def lift_score(estimator, X, y):
     lift_group['lift'] = lift_group['response_rate']/mean_response_rate
     return lift_group
 
-
-def eval_metrics(estimator, X, y, model_name=""):
+def eval_metrics(estimator, 
+                 X_train, 
+                 y_train, 
+                 X_test, 
+                 y_test,
+                 model_name=""):
     """
     Evaluate and display key metrics for a classification model, including a classification report,
     confusion matrix, ROC curve, and lift chart.
 
-    This function evaluates the performance of a classification model using several metrics and visualizations:
-    - Prints a classification report summarizing precision, recall, f1-score, and support.
-    - Displays a confusion matrix.
-    - Displays a ROC curve.
-    - Computes and prints a lift score report.
-    - Plots a lift chart based on deciles of predicted probabilities.
+    This function provides a comprehensive evaluation of a classification model by calculating and 
+    displaying the following metrics and visualizations:
+
+    - **Classification Report**: Summarizes precision, recall, f1-score, and support for both the training
+      and test datasets.
+    - **Confusion Matrix**: Visualizes the confusion matrix for both the training and test datasets.
+    - **ROC Curve**: Plots the ROC curve for both the training and test datasets on the same figure to 
+      compare model performance.
+    - **Lift Report and Lift Chart**: Computes the lift score for the training and test datasets, printing 
+      a lift report and plotting a lift chart based on deciles of predicted probabilities.
 
     Parameters:
     -----------
     estimator : object
         A fitted estimator object that has `predict` and `predict_proba` methods.
-    X : array-like, shape (n_samples, n_features)
-        The input data used to generate predictions.
-    y : array-like, shape (n_samples,)
-        The true binary labels (0 or 1).
+    X_train : array-like, shape (n_samples, n_features)
+        The training input data used to generate predictions.
+    y_train : array-like, shape (n_samples,)
+        The true binary labels (0 or 1) for the training data.
+    X_test : array-like, shape (n_samples, n_features)
+        The test input data used to generate predictions.
+    y_test : array-like, shape (n_samples,)
+        The true binary labels (0 or 1) for the test data.
     model_name : str, optional (default="")
-        An optional name for the model, used for labeling and titles.
+        An optional name for the model, used for labeling and titles in the plots.
 
     Notes:
     ------
     - The function assumes that `classification_report`, `ConfusionMatrixDisplay`, and `RocCurveDisplay`
-      are imported from `sklearn.metrics` and `matplotlib.pyplot` is imported as `plt`.
-    - The function relies on the `lift_score` function to calculate and display the lift report and lift chart.
-    - The lift chart is plotted using `matplotlib` and displays lift across deciles.
+      are imported from `sklearn.metrics`, and `matplotlib.pyplot` is imported as `plt`.
+    - The `lift_score` function is required to calculate and display the lift report and lift chart.
+    - The lift chart is plotted using `matplotlib` and shows the lift across deciles, comparing the model's
+      performance on both the training and test datasets.
+    - The function is designed to be used with binary classification models.
+
+    Returns:
+    --------
+    str
+        A string indicating the completion of the evaluation process.
+
+    Example:
+    --------
+    >>> model = RandomForestClassifier()
+    >>> model.fit(X_train, y_train)
+    >>> eval_metrics(model, X_train, y_train, X_test, y_test, model_name="Random Forest")
     """
+    y_pred_train = estimator.predict(X_train)
+    class_report_train= classification_report(y_train, y_pred_train)
+    print("Model metrics Summary (train): \n%s", str(class_report_train))
 
-    y_pred_test = estimator.predict(X)
-    class_report_test = classification_report(y, y_pred_test)
-    print("Model metrics Summary: \n%s", str(class_report_test))
+    y_pred_test = estimator.predict(X_test)
+    class_report_test = classification_report(y_test, y_pred_test)
+    print("Model metrics Summary (test): \n%s", str(class_report_test))
 
-    display = ConfusionMatrixDisplay.from_estimator(estimator, X, y)
-    _ = display.ax_.set_title("Confusion Matrix")
+    display = ConfusionMatrixDisplay.from_estimator(estimator, X_train, y_train)
+    _ = display.ax_.set_title("Confusion Matrix (Train)")
 
-    display2 = RocCurveDisplay.from_estimator(estimator, X, y)
-    _ = display2.ax_.set_title("ROC Curve")
+    display = ConfusionMatrixDisplay.from_estimator(estimator, X_test, y_test)
+    _ = display.ax_.set_title("Confusion Matrix (Test)")
 
-    model_lift = lift_score(estimator, X, y)
-    print("Model Lift Report: \n%s", str(model_lift))
+    # Get probabilities
+    y_train_probs = estimator.predict_proba(X_train)[:, 1]  # Probabilities for the positive class
+    y_test_probs = estimator.predict_proba(X_test)[:, 1]    # Probabilities for the positive class
+
+
+    plt.figure()
+
+    # Plot ROC curve for the training set
+    RocCurveDisplay.from_predictions(y_train, y_train_probs, name="Train Set", ax=plt.gca())
+
+    # Plot ROC curve for the test set
+    RocCurveDisplay.from_predictions(y_test, y_test_probs, name="Test Set", ax=plt.gca())
+
+    # Add labels and legend
+    plt.title("ROC Curve - Train and Test Sets")
+    plt.legend(loc="lower right")
+    plt.show()
+
+
+    model_lift_train = lift_score(estimator, X_train, y_train)
+    model_lift_test = lift_score(estimator, X_test, y_test)
+    print("Model Lift Report (Train): \n%s", str(model_lift_train), "\n")
+    print("Model Lift Report (Test): \n%s", str(model_lift_test))
 
     plt.figure(4)
     ax=plt.gca()
-    model_lift.plot(x='decile', y="lift", ax=ax, color='r')
-    ax.legend(["Lift"])
+    model_lift_train.plot(x='decile', y="lift", ax=ax, color='blue', legend=True)
+    model_lift_test.plot(x='decile', y="lift", ax=ax, color='orange', legend=True)
+    ax.legend(["Lift Train", "Lift Test"])
     plt.title("Lift Chart")
     plt.xlabel('Decile')
     ax.grid('on')
